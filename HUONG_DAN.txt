@@ -1,0 +1,59 @@
+ESP32 MACRO PAD 8 V1.0 — HƯỚNG DẪN
+
+1. PHẦN CỨNG
+ESP32-C3 Super Mini, 8 nút nhấn thường hở, dây hàn, USB-C.
+Nút 1–8 nối lần lượt GPIO 0, 1, 3, 4, 5, 6, 7, 10; chân còn lại của từng nút nối GND chung. Không nối nút vào 5V/3V3. INPUT_PULLUP nội bộ. GPIO8 LED active LOW, GPIO9 BOOT. Không giữ BOOT lúc cấp nguồn trừ khi cần nạp. Kiểm tra nhãn chân trên board thật.
+
+2. ARDUINO IDE 2.x
+- File > Preferences > Additional boards manager URLs:
+  https://espressif.github.io/arduino-esp32/package_esp32_index.json
+- Boards Manager: esp32 by Espressif Systems, chọn đúng 2.0.17.
+- Library Manager: ArduinoJson by Benoit Blanchon, 6.21.5; NimBLE-Arduino by h2zero, 1.4.3 (không dùng 2.x).
+- Tải ESP32-BLE-Keyboard 0.3.2-beta:
+  https://github.com/T-vK/ESP32-BLE-Keyboard/releases/tag/0.3.2-beta
+  Sketch > Include Library > Add .ZIP Library, chọn file zip thư viện.
+- Mở BleKeyboard.h trong thư mục thư viện vừa cài (thường Documents/Arduino/libraries/ESP32-BLE-Keyboard). Bỏ // ở dòng //#define USE_NIMBLE thành #define USE_NIMBLE. Lưu. Đây là bắt buộc cho cấu hình RAM đề xuất. Không dùng các bản thư viện trùng tên.
+- Giải nén gói firmware, mở ESP32_MACRO_PAD_8_V1_0/ESP32_MACRO_PAD_8_V1_0.ino. WebUI.h phải nằm cạnh file ino. Không cần upload filesystem riêng.
+- Tools > Board > ESP32C3 Dev Module. Flash 4MB; Partition Scheme: Huge APP (3MB No OTA/1MB SPIFFS) nếu có; LittleFS dùng phân vùng dữ liệu SPIFFS. USB CDC On Boot: Enabled; Upload Speed: 115200; Erase All Flash Before Sketch Upload: Disabled (để giữ cấu hình khi nạp lại).
+- Chọn COM, Verify rồi Upload. Nếu không nhận COM: giữ BOOT, nhấn/thả RESET, thả BOOT; chọn COM xuất hiện và Upload. Sau nạp nhấn RESET nếu cần.
+- Firmware nguồn chưa được biên dịch bằng toolchain ESP32 trong môi trường tạo gói; các phiên bản trên là cấu hình mục tiêu, chưa được xác nhận thực nghiệm. Nếu lỗi, gửi toàn bộ log Verify.
+
+3. KẾT NỐI WINDOWS 10/11
+Settings > Bluetooth & devices > Add device > Bluetooth > Macro Pad 8. Ghép đôi lần đầu; các lần sau Windows có thể tự kết nối lại khi ESP32 quảng bá. Không cần app PC. Khi đổi tên, Windows có thể giữ tên cũ: Remove device và pair lại. Nên dùng layout bàn phím English (US). Nhập ASCII; tiếng Việt Unicode không được hỗ trợ trực tiếp.
+
+4. CẤU HÌNH ĐIỆN THOẠI
+Sau khi ESP32 khởi động, giữ BOOT 3 giây rồi nhả. Kết nối Wi-Fi ESP32-MacroPad, mật khẩu ban đầu Macro1234. Nếu điện thoại cảnh báo không Internet, chọn vẫn kết nối. Mở http://192.168.4.1 (không phải HTTPS). Có thể cần tắt VPN/mobile data nếu điện thoại tự chuyển mạng.
+Chọn profile chỉnh sửa, nút, kiểu nhấn, loại và nội dung lệnh. Chọn profile hoạt động riêng. Bấm Lưu toàn bộ vào ESP32. Wi-Fi tắt sau 5 phút kể từ yêu cầu web cuối cùng; giữ BOOT 3 giây để bật/tắt thủ công. Đổi mật khẩu/tên Bluetooth sẽ lưu và reboot, sau đó Wi-Fi mặc định tắt. Đổi mật khẩu mặc định ngay, chỉ kết nối điện thoại tin cậy. Không có giao diện Internet từ xa; người biết mật khẩu AP có thể chỉnh cấu hình. JSON backup có mật khẩu dạng rõ.
+
+5. TÁC VỤ
+5 profile x 8 nút x 3 kiểu nhấn = 120 vị trí. Windows profile có 24 tác vụ mẫu, các profile còn lại trống. Tắt double riêng mỗi nút để giảm độ trễ; nhấn đơn thực hiện lúc nhả, không phải lúc vừa ấn (để phân biệt nhấn giữ). Double mặc định 250ms, hold 650ms, debounce 25ms.
+shortcut: CTRL+C, CTRL+SHIFT+ESC, WIN+SHIFT+S, ALT+F4, F12, ENTER.
+app: calc, excel, winword, hoặc đường dẫn executable đặt trong dấu ngoặc kép.
+url: https://example.com
+file: C:\Users hoặc đường dẫn đầy đủ (ngoặc kép nếu cần).
+text: ASCII, xuống dòng gửi Enter; không dùng để lưu mật khẩu.
+media: MUTE, PLAY, VOLUP, VOLDOWN, NEXT, PREV.
+profile: 1..5 (dùng một tác vụ để chuyển profile, lưu Flash).
+macro: mỗi dòng một lệnh, ví dụ:
+KEY WIN+R
+WAIT 500
+TEXT calc
+KEY ENTER
+WAIT tối đa 10000 ms mỗi bước. Mỗi nội dung tối đa 240 byte, tên tác vụ/profile 40 byte (UTF-8). Lệnh mở app/file/url dựa trên Windows Run nên phụ thuộc máy đã cài app và trạng thái Windows; không chạy khi máy khóa. Thử lệnh an toàn trước.
+
+6. LED
+Nháy ngắn 1 lần/giây: chưa kết nối Bluetooth. Sáng liên tục: đã kết nối. Nháy 2 lần/giây: Wi-Fi cấu hình đang bật (ưu tiên hiển thị).
+
+7. BACKUP / RESTORE
+Backup JSON tải bản cấu hình đang chỉnh trên điện thoại, kể cả chỉnh sửa chưa lưu. Restore JSON đọc vào giao diện; bấm Lưu để ghi Flash. Firmware kiểm tra cấu trúc trước khi ghi. LittleFS có config.json và config.bak; tự thử backup khi file chính lỗi. Nếu quên mật khẩu, xóa Flash toàn bộ khi upload lại (mất cấu hình) rồi nạp firmware. LittleFS.begin(true) có thể format nếu mount lỗi.
+
+8. KIỂM THỬ SAU NẠP
+- Pair Windows, thử Copy/Paste trong Notepad; nhấn đơn/đúp/giữ.
+- Giữ BOOT 3s, kết nối Wi-Fi, sửa nút sang calc, lưu và thử.
+- Thử đổi profile, tắt double, đo phản hồi, kiểm tra LED.
+- Backup, sửa, restore, lưu, cắt điện và bật lại.
+- Kiểm tra tự ngắt Wi-Fi sau 5 phút, BLE reconnect, đổi tên/mật khẩu.
+- Nếu reset khi Wi-Fi bật hoặc lưu JSON, kiểm tra nguồn và đúng NimBLE 1.4.3; chưa có đo RAM thực tế. Không chạy macro chứa lệnh không rõ nguồn.
+
+9. FILES
+.ino: firmware; WebUI.h: web tích hợp trong firmware; web_app.html: bản HTML nguồn tham khảo, cần API trên ESP32 để hoạt động. Không phải web app offline độc lập.
