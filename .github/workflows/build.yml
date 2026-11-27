@@ -29,14 +29,35 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:esp32c3:CDCOnBoot=cdc,PartitionScheme=huge_app,FlashSize=4M,FlashMode=dio --output-dir build ESP32_MACRO_PAD_8_V1_0
       - name: Merge flash image at 0x0
         run: |
-          ESPTOOL=$(find "$HOME/.arduino15/packages/esp32/tools/esptool_py" -type f -name esptool -print -quit)
-          test -n "$ESPTOOL"
-          "$ESPTOOL" version
-          mkdir -p output
-          S=ESP32_MACRO_PAD_8_V1_0.ino
-          "$ESPTOOL" --chip esp32c3 merge_bin -o output/ESP32_MACRO_PAD_8_V1_0_MERGED.bin --flash_mode dio --flash_size 4MB 0x0 "build/$S.bootloader.bin" 0x8000 "build/$S.partitions.bin" 0xe000 "$HOME/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/boot_app0.bin" 0x10000 "build/$S.bin"
-          cd output
-          sha256sum *.bin > SHA256SUMS.txt
+          python3 - <<'PYMERGE'
+          from pathlib import Path
+          import hashlib
+          s = 'ESP32_MACRO_PAD_8_V1_0.ino'
+          core = Path.home() / '.arduino15/packages/esp32/hardware/esp32/2.0.17'
+          parts = [(0, Path('build') / (s + '.bootloader.bin'), 0x8000),
+                   (0x8000, Path('build') / (s + '.partitions.bin'), 0xe000),
+                   (0xe000, core / 'tools/partitions/boot_app0.bin', 0x10000),
+                   (0x10000, Path('build') / (s + '.bin'), 0x310000)]
+          image = bytearray()
+          for offset, path, limit in parts:
+              data = path.read_bytes()
+              if not data or offset < len(image) or offset + len(data) > limit:
+                  raise RuntimeError(f'Invalid segment: {path}, {len(data)} bytes')
+              if offset in (0, 0x10000) and data[0] != 0xe9:
+                  raise RuntimeError(f'Invalid ESP image: {path}')
+              image.extend(b'\xff' * (offset - len(image)))
+              image.extend(data)
+              print(f'{offset:#08x}: {path} ({len(data)} bytes)')
+          out = Path('output'); out.mkdir(exist_ok=True)
+          target = out / 'ESP32_MACRO_PAD_8_V1_0_MERGED.bin'
+          target.write_bytes(image)
+          check = target.read_bytes()
+          for offset, path, _ in parts:
+              data = path.read_bytes()
+              assert check[offset:offset+len(data)] == data
+          (out / 'SHA256SUMS.txt').write_text(hashlib.sha256(check).hexdigest() + '  ' + target.name + '\n')
+          print(f'Merged image: {len(check)} bytes')
+          PYMERGE
       - uses: actions/upload-artifact@v4
         with:
           name: MacroPad8-ESPBoards-BIN
